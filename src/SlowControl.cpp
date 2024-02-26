@@ -203,26 +203,19 @@ bool SlowControl::Config() {
 
 bool SlowControl::Request() {
 
-   std::vector <zmq::message_t *> reply1;
-   std::vector <zmq::message_t *> reply2;
+   std::vector <zmq::message_t *> reply;
 
-   std::string ident1 = "MPMTSC1";
-   std::string ident2 = "MPMTSC2";
+   std::string ident = "MPMTSC1";
 
-   zmq::message_t *identity1 = new zmq::message_t(8);
-   zmq::message_t *identity2 = new zmq::message_t(8);
+   zmq::message_t *identity = new zmq::message_t(8);
 
-   snprintf((char *) identity1->data(), ident1.length() + 1, "%s", ident1.c_str());
-   snprintf((char *) identity2->data(), ident2.length() + 1, "%s", ident2.c_str());
+   snprintf((char *) identity->data(), ident.length() + 1, "%s", ident.c_str());
 
-   reply1.push_back(identity1);
-   reply2.push_back(identity2);
+   reply.push_back(identity);
 
-   zmq::message_t *blank1 = new zmq::message_t(0);
-   zmq::message_t *blank2 = new zmq::message_t(0);
+   zmq::message_t *blank = new zmq::message_t(0);
 
-   reply1.push_back(blank1);
-   reply2.push_back(blank2);
+   reply.push_back(blank);
 
    Store tmp;
    tmp.Set("uuid", UUID);
@@ -232,11 +225,9 @@ bool SlowControl::Request() {
            boost::posix_time::to_iso_extended_string(boost::posix_time::
                                                      second_clock::universal_time()));
 
-   reply1.push_back(tmp.MakeMsg());
-   reply2.push_back(tmp.MakeMsg());
+   reply.push_back(tmp.MakeMsg());
 
-   msg_queue.push_back(reply1);
-   msg_queue.push_back(reply2);
+   msg_queue.push_back(reply);
 
    logger->Send("MPMT Initialising");
 
