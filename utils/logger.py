@@ -9,11 +9,11 @@ import colors
 
 host = "localhost"
 if len(sys.argv) > 1:
-    host =  sys.argv[2]
+    host =  sys.argv[1]
 
 port = "55555"
 if len(sys.argv) > 2:
-    port =  sys.argv[3]
+    port =  sys.argv[2]
 
 context = zmq.Context()
 socket = context.socket(zmq.SUB)
