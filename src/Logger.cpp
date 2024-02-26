@@ -5,7 +5,7 @@ Logger::Logger(zmq::socket_t& insock, Store& variables) {
    sock = &insock;
 
    // endpoint and port number to bind logging socket 
-   std::string logger_sock_port = "tcp://*:11111";      
+   std::string logger_sock_port = "tcp://*:55555";      
    // number of senconds to hold back identical log messages to stop flooding
    int logger_resend_period = 1;        
    // service name so other nodes know what type of node this is

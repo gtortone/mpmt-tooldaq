@@ -29,9 +29,11 @@ bool SlowControl::Send() {
       if(msg_queue.at(0).size() > 0) {
 
          for(int i = 0; i < msg_queue.at(0).size() - 1; i++) {
+            std::cout << *(msg_queue.at(0).at(i)) << std::endl;
             ret *= sock->send(*(msg_queue.at(0).at(i)), ZMQ_SNDMORE);
          }
 
+         std::cout << *(msg_queue.at(0).at(msg_queue.at(0).size() -1)) << std::endl;
          ret *= sock->send(*(msg_queue.at(0).at(msg_queue.at(0).size() - 1)));
       }
 
@@ -39,7 +41,7 @@ bool SlowControl::Send() {
    }
 
    if(!ret) {
-      logger->Send("Warnning!!! Slow control reply not sending correctly");
+      logger->Send("Warning!!! Slow control reply not sending correctly");
       return false;
    }
 
@@ -48,14 +50,22 @@ bool SlowControl::Send() {
 
 bool SlowControl::Receive() {
 
-   zmq::message_t * identity = new zmq::message_t;
+   zmq::message_t *identity = new zmq::message_t;
+
+   std::cout << "in SlowControl::Receive method" << std::endl;
 
    if(sock->recv(identity)) {
 
+      std::cout << "identity: " << *identity << std::endl;
+
       zmq::message_t throwaway;
       if(identity->more() && sock->recv(&throwaway)) {
+         
+         std::cout << "throwaway: " << throwaway << std::endl;
 
          if(throwaway.more() && configuration_variables.Receive(sock)) {
+
+            std::cout << "configuration_variables received" << std::endl;
 
             Store ret;
 
@@ -64,28 +74,37 @@ bool SlowControl::Receive() {
             std::string type = "";
             if(configuration_variables.Get("msg_type", type)) {
 
+               std::cout << "msg_type: " << type << std::endl;
+
                if(type == "Config") {
+
                   ret.Set("AKN", Config());
-                  logger->Send("MPMT Reconfigured/Initiaised");
+                  logger->Send("MPMT Reconfigured/Initialised");
                   ret.Set("msg_value", "Received Config");
                   int state = 0;
                   variables->Get("state", state);
+
                   if(state == 1)
                      variables->Set("state", "2");
 
                } else if(type == "Command") {
 
                   std::string command = "";
+
                   if(configuration_variables.Get("msg_value", command)) {
+
                      ret.Set("msg_value", Command(command));
                      ret.Set("AKN", true);
+
                   } else {
+
                      ret.Set("msg_value", "Error!!! No msg_value/Command in JSON");
                      ret.Set("AKN", false);
                      logger->Send("Warning!!! No slow control msg_value/Command in JSON");
                   }
 
                } else {
+
                   ret.Set("msg_value", "Error!!! Unknown msg_type");
                   ret.Set("AKN", false);
                   logger->Send("Warning!!! Unknown slow control msg_type");
@@ -190,8 +209,8 @@ bool SlowControl::Request() {
    std::string ident1 = "MPMTSC1";
    std::string ident2 = "MPMTSC2";
 
-   zmq::message_t * identity1 = new zmq::message_t(8);
-   zmq::message_t * identity2 = new zmq::message_t(8);
+   zmq::message_t *identity1 = new zmq::message_t(8);
+   zmq::message_t *identity2 = new zmq::message_t(8);
 
    snprintf((char *) identity1->data(), ident1.length() + 1, "%s", ident1.c_str());
    snprintf((char *) identity2->data(), ident2.length() + 1, "%s", ident2.c_str());
@@ -199,8 +218,8 @@ bool SlowControl::Request() {
    reply1.push_back(identity1);
    reply2.push_back(identity2);
 
-   zmq::message_t * blank1 = new zmq::message_t(0);
-   zmq::message_t * blank2 = new zmq::message_t(0);
+   zmq::message_t *blank1 = new zmq::message_t(0);
+   zmq::message_t *blank2 = new zmq::message_t(0);
 
    reply1.push_back(blank1);
    reply2.push_back(blank2);
