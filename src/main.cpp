@@ -11,6 +11,7 @@
 #include <Logger.h>
 #include <Store.h>
 #include <ServiceDiscovery.h>
+#include <RunControl.h>
 #include <SlowControl.h>
 #include <Monitor.h>
 #include <DataManager.h>
@@ -69,6 +70,11 @@ int main(int argc, char *argv[]) {
 
    // class for handling service discovery broadcasts
    ServiceDiscovery service_discovery(variables, service_discovery_sock);       
+   
+   // socket for run control input and output
+   zmq::socket_t run_control_sock(context, ZMQ_ROUTER);        
+   // class for handling slow control input, commands and output
+   RunControl run_control(run_control_sock, logger, variables);      
 
    // socket for slow control input and output
    zmq::socket_t slow_control_sock(context, ZMQ_ROUTER);        
@@ -87,12 +93,14 @@ int main(int argc, char *argv[]) {
 
    // input sockets to poll (similar to select) for activity 
    zmq::pollitem_t in_items[] = {       
+      {run_control_sock, 0, ZMQ_POLLIN, 0},
       {slow_control_sock, 0, ZMQ_POLLIN, 0},
       {data_sock, 0, ZMQ_POLLIN, 0},
    };
 
    // output sockets to poll (similar to select) for activity
    zmq::pollitem_t out_items[] = {      
+      {run_control_sock, 0, ZMQ_POLLOUT, 0},
       {slow_control_sock, 0, ZMQ_POLLOUT, 0},
       {NULL, service_discovery_sock, ZMQ_POLLOUT, 0},
       {monitor_sock, 0, ZMQ_POLLOUT, 0},
@@ -134,11 +142,11 @@ int main(int argc, char *argv[]) {
          // Get data from hardware 
          data_manager.GetData();        
          // there is no blocking on the polling here to not limit/holdup the collection of data 
-         zmq::poll(&in_items[0], 2, 0); 
+         zmq::poll(&in_items[0], 3, 0); 
       }
       else {
          // in any other state other than data taking i have a 100ms block on the poll to keep the CPU from maxing out doing nothing and power consumption low.
-         zmq::poll(&in_items[0], 2, 100);       
+         zmq::poll(&in_items[0], 3, 100);       
       }
 
       // this function manages the two queues of data the new data queue that needs to be sent out and the sent queue that is data waiting to be deleted 
@@ -146,11 +154,13 @@ int main(int argc, char *argv[]) {
       // between the queues for resending.
       data_manager.ManageQueues();      
       // polling the outbound sockets. This poll has no block as can be delayed by the inbound socket polling. 
-      zmq::poll(&out_items[0], 4, 0);   
+      zmq::poll(&out_items[0], 5, 0);   
 
-      if(in_items[0].revents & ZMQ_POLLIN)
+      if(in_items[1].revents & ZMQ_POLLIN) {
          // reading in any data received on the slowcontrol port and taking the necessary actions
-         slow_control.Receive();        
+         std::cout << "in slow_control ZMQ_POLLIN" << std::endl;
+         slow_control.Receive();
+      }
 
       // determining if the the slow control configuration request timer has lapsed
       boost::posix_time::time_duration lapse = config_request_period_td - (boost::posix_time::second_clock::universal_time() - last_config_request);    
@@ -159,19 +169,19 @@ int main(int argc, char *argv[]) {
       if(lapse.is_negative() && state == 1) {   
 
          // sending out the request for configuration
-         slow_control.Request();        
+         slow_control.Request();
          // resetting last time request sent;
-         last_config_request = boost::posix_time::second_clock::universal_time();       
+         last_config_request = boost::posix_time::second_clock::universal_time();
       }
 
-      if((out_items[0].revents & ZMQ_POLLOUT) && state != 0)
+      if((out_items[1].revents & ZMQ_POLLOUT) && state != 0)
          // sending any data necesary on the slow control socket
          slow_control.Send();   
 
       // checking if service discovery time has lapsed
       lapse = broadcast_period_td - (boost::posix_time::second_clock::universal_time() - last_service_broadcast);       
 
-      if((out_items[1].revents & ZMQ_POLLOUT) && lapse.is_negative() && state != 0) {
+      if((out_items[2].revents & ZMQ_POLLOUT) && lapse.is_negative() && state != 0) {
 
          // sending out service discovery braodcast
          service_discovery.Send();      
@@ -182,7 +192,7 @@ int main(int argc, char *argv[]) {
       // checking if monitoring time has lapsed
       lapse = monitor_send_period_td - (boost::posix_time::second_clock::universal_time() - last_monitor_send); 
 
-      if((out_items[2].revents & ZMQ_POLLOUT) && lapse.is_negative() && state != 0) {
+      if((out_items[3].revents & ZMQ_POLLOUT) && lapse.is_negative() && state != 0) {
 
          // updating the queue status into the variables Store
          data_manager.UpdateStatus();   
@@ -192,13 +202,15 @@ int main(int argc, char *argv[]) {
          last_monitor_send = boost::posix_time::second_clock::universal_time(); 
       }
 
-      if((in_items[1].revents & ZMQ_POLLIN) && state != 0)
+      if((in_items[2].revents & ZMQ_POLLIN) && state != 0) {
          // receiving any data acknolwedge statements
          data_manager.Receive();        
+      }
 
-      if((out_items[3].revents & ZMQ_POLLOUT) && state != 0)
+      if((out_items[4].revents & ZMQ_POLLOUT) && state != 0) {
          // sending out any data
-         data_manager.Send();   
+         data_manager.Send();
+      }
 
       // get the current state from store in case classes have changed it           
       variables.Get("state", state);    
