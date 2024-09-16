@@ -33,3 +33,12 @@
 
 build/
 utils/__pycache__/
+
+linked/UUID
+linked/include/*
+linked/main
+linked/NodeDaemon
+linked/RemoteControl
+standalone/UUID
+standalone/a.out
+
