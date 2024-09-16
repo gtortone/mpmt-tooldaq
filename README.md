@@ -1,2 +1,0 @@
-# mpmt-tooldaq
-MPMT ToolDAQ
