@@ -32,7 +32,8 @@ bool HKMPMT::Initialise(std::string configfile, DataModel &data) {
    m_util=new Utilities();
 
    args = new HKMPMT_args();
-
+   
+   args->mpmt_id = m_id;
    args->m_data = m_data;
    args->data_sock = new zmq::socket_t(*(m_data->context), ZMQ_DEALER);
    args->data_port = "4444";
@@ -73,10 +74,51 @@ void HKMPMT::Thread(Thread_args* arg){
    HKMPMT_args* args=reinterpret_cast<HKMPMT_args*>(arg);
 
    DAQHeader *dh = new DAQHeader();
-   uint16_t event[8] = { 0xbaab, 0xc064, 0x9177, 0x3622, 0x210b, 0x80e0, 0x001c, 0xfeef };
+   dh->SetCardType(2);
+   dh->SetCardID(args->mpmt_id);
+
+   // FIXME
+   dh->SetCoarseCounter(800);
+
+   /* 
+      plain event (no subhits):
+         0x8038118C
+         0x0C076053
+         0xFFFFF102
+
+   uint16_t event[6] = { 0x3880, 0x8C11, 0x070C, 0x5360, 0xFFFF, 0x02F1 };
+
+   */
+
+   /*
+
+      plain event (1 subhit):
+         0x8038518C
+         0x0C076053
+         0x4C076053
+         0xFFFFF102
+
+   uint16_t event[8] = { 0x3880, 0x8C51, 0x070C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
+
+   */
+
+   /*
+
+      plain event (2 subhits):
+         0x8038918C
+         0x0C076053
+         0x4C076053
+         0x4C076053
+         0xFFFFF102
+
+   uint16_t event[12] = { 0x3880, 0x8C91, 0x070C, 0x5360, 0x074C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
+
+   */
+   
+   uint16_t event[12] = { 0x3880, 0x8C91, 0x070C, 0x5360, 0x074C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
 
    zmq::const_buffer buf1 = zmq::buffer(dh->GetData(), dh->GetSize());
-   zmq::const_buffer buf2 = zmq::buffer(event, 8);
+   zmq::const_buffer buf2 = zmq::buffer(event, sizeof(event));
 
    args->data_sock->send(buf1, zmq::send_flags::sndmore);
    args->data_sock->send(buf2, zmq::send_flags::dontwait);
@@ -88,5 +130,5 @@ void HKMPMT::Thread(Thread_args* arg){
    zmq::message_t reply;
    args->data_sock->recv(reply, zmq::recv_flags::none);
 
-   //std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+   std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 }

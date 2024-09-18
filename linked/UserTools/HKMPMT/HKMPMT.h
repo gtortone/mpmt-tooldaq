@@ -24,6 +24,8 @@ struct HKMPMT_args:Thread_args{
   std::string data_port;
   DAQUtilities* utils;
   DataModel* m_data;
+
+  int mpmt_id;
 };
 
 /**
