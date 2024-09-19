@@ -81,7 +81,7 @@ void HKMPMT::Thread(Thread_args* arg){
    dh->SetCoarseCounter(800);
 
    /* 
-      plain event (no subhits):
+      MPMT event (no subhits):
          0x8038118C
          0x0C076053
          0xFFFFF102
@@ -91,8 +91,7 @@ void HKMPMT::Thread(Thread_args* arg){
    */
 
    /*
-
-      plain event (1 subhit):
+      MPMT event (1 subhit):
          0x8038518C
          0x0C076053
          0x4C076053
@@ -103,8 +102,7 @@ void HKMPMT::Thread(Thread_args* arg){
    */
 
    /*
-
-      plain event (2 subhits):
+      MPMT event (2 subhits):
          0x8038918C
          0x0C076053
          0x4C076053
@@ -114,11 +112,24 @@ void HKMPMT::Thread(Thread_args* arg){
    uint16_t event[10] = { 0x3880, 0x8C91, 0x070C, 0x5360, 0x074C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
 
    */
+
+   /*
+      PPS event
+         0xBEAAAAAA
+         0x2A000001
+         0x49FC003F
+         0xF0000002
+
+   uint16_t pps[8] = { 0xAABE, 0xAAAA, 0x002A, 0x0100, 0xFC49, 0x3F00, 0x00F0, 0x0200 };
+   */
    
-   uint16_t event[10] = { 0x3880, 0x8C91, 0x070C, 0x5360, 0x074C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
+   std::vector<uint16_t> event = { 0x3880, 0x8C91, 0x070C, 0x5360, 0x074C, 0x5360, 0x074C, 0x5360, 0xFFFF, 0x02F1 };
+   std::vector<uint16_t> pps = { 0xAABE, 0xAAAA, 0x002A, 0x0100, 0xFC49, 0x3F00, 0x00F0, 0x0200 };
+
+   event.insert(event.end(), pps.begin(), pps.end());
 
    zmq::const_buffer buf1 = zmq::buffer(dh->GetData(), dh->GetSize());
-   zmq::const_buffer buf2 = zmq::buffer(event, sizeof(event));
+   zmq::const_buffer buf2 = zmq::buffer(event.data(), event.size() * sizeof(event[0]));
 
    args->data_sock->send(buf1, zmq::send_flags::sndmore);
    args->data_sock->send(buf2, zmq::send_flags::dontwait);
