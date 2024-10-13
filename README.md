@@ -44,13 +44,11 @@ cppzmq
 
 ### Build with CMake
 
-- edit CMakeLists.txt and modify `DEPENDENCIES_PATH` accordingly to your setup
-
 - start build
 
   ```
   mkdir build
   cd build
-  cmake ..
+  cmake -DDEPENDENCIES_PATH=/mydir ..
   make
   ```

@@ -6,7 +6,7 @@ project (ToolDAQApplication)
 set(CMAKE_CXX_FLAGS "-fPIC -O3  -std=c++11 -Wno-comment")
 
 # set DEPENDENCIES_PATH to path containing libDAQInterface, ToolDAQFramework, ToolFrameworkCore libraries
-set(DEPENDENCIES_PATH "/opt")
+set(DEPENDENCIES_PATH "/opt" CACHE STRING "ToolDAQ dependencies path")
 
 set(BOOST_LIBS boost_date_time boost_serialization boost_iostreams)
 set(ZMQ_LIBS zmq)
