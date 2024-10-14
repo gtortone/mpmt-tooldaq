@@ -6,6 +6,8 @@ Tool* ret=0;
 
 // if (tool=="Type") tool=new Type;
 if (tool=="DummyTool") ret=new DummyTool;
-  if (tool=="HKMPMT") ret=new HKMPMT;
+if (tool=="HKMPMT") ret=new HKMPMT;
+if (tool=="FPGAReadout") ret=new FPGAReadout;
+  if (tool=="NetTransmit") ret=new NetTransmit;
 return ret;
 }

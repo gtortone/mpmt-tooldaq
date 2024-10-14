@@ -15,36 +15,31 @@
 #include "DAQDataModelBase.h"
 #include "DAQHeader.h"
 
-using namespace ToolFramework;
+#include "dma-proxy.h"
+#include "queue.hpp"
 
-/*o*
- * \class DataModel
- *
- * This class Is a transient data model class for your Tools within the ToolChain. If Tools need to comunicate they pass all data objects through the data model. There fore inter tool data objects should be deffined in this class. 
- *
- *
- * $Author: B.Richards $ 
- * $Date: 2019/05/26 18:34:00 $
- * Contact: b.richards@qmul.ac.uk
- *
- */
+using namespace ToolFramework;
 
 class DataModel : public DAQDataModelBase {
   
 public:
   
-  DataModel(); ///< Simple constructor 
+   DataModel(); ///< Simple constructor 
+   
+   bool load_config;
+   bool change_config;
+   bool run_start;
+   bool run_stop;
+   bool sub_run;
+   boost::posix_time::ptime start_time;
+   
+   unsigned long run_number;
+   unsigned long sub_run_number;
 
-  bool load_config;
-  bool change_config;
-  bool run_start;
-  bool run_stop;
-  bool sub_run;
-  boost::posix_time::ptime start_time;
+   int mpmt_id;
+   TSQueue<uint16_t> q1, q2, q3;
+   struct channel_buffer *buf_ptr;   
 
-  unsigned long run_number;
-  unsigned long sub_run_number;
-  
 };
 
 #endif
