@@ -7,32 +7,38 @@
 #include "Tool.h"
 #include "DataModel.h"
 
-/**
- * \class NetTransmit
- *
- * This is a balnk template for a Tool used by the script to generate a new custom tool. Please fill out the descripton and author information.
-*
-* $Author: B.Richards $
-* $Date: 2019/05/28 10:44:00 $
-*/
+struct NetTransmit_args:Thread_args{
+
+   NetTransmit_args();
+   ~NetTransmit_args();
+
+   DataModel* m_data;
+   DAQUtilities* utils;
+   
+   int32_t *buffer_id;
+   bool *next_xfer;
+   int verbose;
+};
+
 
 class NetTransmit: public Tool {
 
+public:
 
- public:
+   NetTransmit();
+   bool Initialise(std::string configfile,DataModel &data);
+   
+   bool Execute();
+   bool Finalise();
 
-  NetTransmit(); ///< Simple constructor
-  bool Initialise(std::string configfile,DataModel &data); ///< Initialise Function for setting up Tool resorces. @param configfile The path and name of the dynamic configuration file to read in. @param data A reference to the transient data class used to pass information between Tools.
-  bool Execute(); ///< Executre function used to perform Tool perpose. 
-  bool Finalise(); ///< Finalise funciton used to clean up resorces.
+private:
 
+   int32_t buffer_id;
+   bool next_xfer;
 
- private:
-
-
-
-
-
+   static void Thread(Thread_args* arg);
+   Utilities* m_util; 
+   NetTransmit_args* args;
 };
 
 

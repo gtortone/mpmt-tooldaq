@@ -15,6 +15,7 @@
 #include "DAQDataModelBase.h"
 #include "DAQHeader.h"
 
+#include "zmq.hpp"
 #include "dma-proxy.h"
 #include "queue.hpp"
 
@@ -39,6 +40,9 @@ public:
    int mpmt_id;
    TSQueue<uint16_t> q1, q2, q3;
    struct channel_buffer *buf_ptr;   
+
+   zmq::socket_t *data_sock;
+   std::string data_port;
 
 };
 

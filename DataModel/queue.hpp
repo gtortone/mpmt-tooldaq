@@ -40,7 +40,6 @@ public:
    // Pops an element off the queue
    T pop()
    {
-
       // acquire lock
       std::unique_lock<std::mutex> lock(m_mutex);
 
@@ -54,6 +53,36 @@ public:
 
       // return item
       return item;
+   }
+
+   T pop(bool *time_expired)
+   {
+      // acquire lock
+      std::unique_lock<std::mutex> lock(m_mutex);
+
+      m_cond.wait_for(lock, std::chrono::seconds(1), [this]() { return !m_queue.empty(); });
+
+      if(!m_queue.empty()) {
+         T item = m_queue.front();
+         m_queue.pop();
+         *time_expired = false;
+         return item;
+      }
+         
+      *time_expired = true;
+      return T();
+   }
+
+   T front()
+   {
+      // acquire lock
+      std::unique_lock<std::mutex> lock(m_mutex);
+
+      // wait until queue is not empty
+      m_cond.wait(lock,
+               [this]() { return !m_queue.empty(); });
+
+      return m_queue.front();      
    }
 
    int size() { return m_queue.size(); }

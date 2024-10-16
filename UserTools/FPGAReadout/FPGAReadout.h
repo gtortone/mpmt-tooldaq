@@ -7,6 +7,20 @@
 #include "Tool.h"
 #include "DataModel.h"
 
+struct FPGAReadout_args:Thread_args{
+
+   FPGAReadout_args();
+   ~FPGAReadout_args();
+   
+   DataModel* m_data;
+   DAQUtilities* utils;
+   //ToolFramework::Logging *m_log;
+   int fd;
+   int32_t *buffer_id;
+   bool *next_xfer;
+   int verbose;
+};
+
 class FPGAReadout: public Tool {
 
 public:
@@ -22,6 +36,9 @@ private:
    int32_t buffer_id;
    bool next_xfer;
 
+   static void Thread(Thread_args* arg);
+   Utilities* m_util;
+   FPGAReadout_args* args;
 };
 
 #endif

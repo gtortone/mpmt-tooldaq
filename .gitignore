@@ -6,7 +6,6 @@
 *.lo
 *.o
 *.obj
-
 # Precompiled Headers
 *.gch
 *.pch
@@ -42,3 +41,4 @@ linked/RemoteControl
 standalone/UUID
 standalone/a.out
 
+include/*

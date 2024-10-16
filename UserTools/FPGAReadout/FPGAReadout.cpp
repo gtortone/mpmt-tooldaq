@@ -2,8 +2,13 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 
-FPGAReadout::FPGAReadout():Tool() {
+FPGAReadout_args::FPGAReadout_args():Thread_args() {
+}
 
+FPGAReadout_args::~FPGAReadout_args() {
+}
+
+FPGAReadout::FPGAReadout():Tool() {
 }
 
 bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
@@ -11,15 +16,20 @@ bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
    InitialiseTool(data);
    InitialiseConfiguration(configfile);
 
-   if(!m_variables.Get("verbose",m_verbose)) m_verbose=1;
-   if(!m_variables.Get("id",m_data->mpmt_id)) m_data->mpmt_id=1;
+   if(!m_variables.Get("verbose", m_verbose))
+      m_verbose = 1;
+
+   if(!m_variables.Get("id", m_data->mpmt_id))
+      m_data->mpmt_id = 1;
+
+   m_util=new Utilities();
 
    fd = open("/dev/dma_proxy_rx", O_RDWR);
    if (fd < 1) {
-      m_data->services->SendLog("unable to open DMA proxy device file", 2);\
+      m_data->services->SendLog("unable to open DMA proxy device file", 2);
       return false;
    }
-   
+
    m_data->buf_ptr = (struct channel_buffer *) mmap(NULL, sizeof(struct channel_buffer) * RX_BUFFER_COUNT,
       PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
    if (m_data->buf_ptr == MAP_FAILED) {
@@ -37,36 +47,35 @@ bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
    buffer_id = 0;
    next_xfer = true;
 
+   args = new FPGAReadout_args();
+   args->utils = new DAQUtilities(m_data->context);
+   args->m_data = m_data;
+   args->fd = fd;
+   args->next_xfer = &next_xfer;
+   args->buffer_id = &buffer_id;
+   args->verbose = m_verbose;
+
+   m_util->CreateThread("readout", &Thread, args);
+
    ExportConfiguration();
 
    return true;
 }
 
-
 bool FPGAReadout::Execute() {
 
-   std::cout << "in FPGAReadout::Execute()" << std::endl;
-
-   if(next_xfer) {
-      buffer_id = m_data->q1.pop();
-      m_data->buf_ptr[buffer_id].length = 32768;
-      ioctl(fd, START_XFER, &buffer_id);
-      std::cout << "START_XFER DONE (" << buffer_id << ")" << std::endl;
-   } 
-   ioctl(fd, FINISH_XFER, &buffer_id);
-   proxy_status status = m_data->buf_ptr[buffer_id].status;
-
-   if(status == PROXY_NO_ERROR) {
-      next_xfer = true;
-      m_data->q2.push(buffer_id);
-      std::cout << "PROXY_NO_ERROR (" << buffer_id << ") " << std::endl;
-   } else next_xfer = false;
-
-   return true;
+  return true;
 }
 
-
 bool FPGAReadout::Finalise() {
+
+   m_util->KillThread(args);
+
+   delete args;
+   args=0;
+
+   delete m_util;
+   m_util=0;
 
    munmap(m_data->buf_ptr, sizeof(struct channel_buffer));
    close(fd);
@@ -79,4 +88,38 @@ bool FPGAReadout::Finalise() {
    next_xfer = true;
 
    return true;
+}
+
+void FPGAReadout::Thread(Thread_args* arg) {
+
+   FPGAReadout_args* args = reinterpret_cast<FPGAReadout_args*>(arg);
+
+   if(*(args->next_xfer)) {
+      *(args->buffer_id) = args->m_data->q1.pop();
+      args->m_data->buf_ptr[*(args->buffer_id)].length = 32768;
+      ioctl(args->fd, START_XFER, args->buffer_id);
+      if(args->verbose > 1) {
+         if(args->m_data->services) {
+            std::stringstream msg;
+            msg << "FPGAReadout::Thread: START_XFER (" << *(args->buffer_id) << ")" << std::endl;
+            args->m_data->services->SendLog(msg.str(), 3);
+         } 
+         printf("FPGAReadout::Thread: START_XFER (%d)\n", *(args->buffer_id));
+      } 
+   } 
+   ioctl(args->fd, FINISH_XFER, args->buffer_id);
+   proxy_status status = args->m_data->buf_ptr[*(args->buffer_id)].status;
+
+   if(status == PROXY_NO_ERROR) {
+      *(args->next_xfer) = true;
+      args->m_data->q2.push(*(args->buffer_id));
+      if(args->verbose > 1) {
+         if(args->m_data->services) {
+            std::stringstream msg;
+            msg << "FPGAReadout::Thread: PROXY_NO_ERROR(" << *(args->buffer_id) << ")" << std::endl;
+            args->m_data->services->SendLog(msg.str(), 3);
+         }
+         printf("FPGAReadout::Thread: PROXY_NO_ERROR (%d)\n", *(args->buffer_id));
+      }
+   } else *(args->next_xfer) = false;
 }
