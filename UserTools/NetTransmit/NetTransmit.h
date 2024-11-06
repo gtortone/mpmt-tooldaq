@@ -14,7 +14,8 @@ struct NetTransmit_args:Thread_args{
 
    DataModel* m_data;
    DAQUtilities* utils;
-   
+   ToolFramework::Logging *m_log;
+
    int32_t *buffer_id;
    bool *next_xfer;
    int verbose;

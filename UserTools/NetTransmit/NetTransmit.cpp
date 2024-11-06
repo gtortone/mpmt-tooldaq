@@ -31,6 +31,7 @@ bool NetTransmit::Initialise(std::string configfile, DataModel &data) {
    args->buffer_id = &buffer_id;
    args->verbose = m_verbose;
    args->next_xfer = &next_xfer;
+   args->m_log = m_log;
    
    m_util->CreateThread("transmit", &Thread, args);
 
@@ -38,7 +39,7 @@ bool NetTransmit::Initialise(std::string configfile, DataModel &data) {
    next_xfer = true;
    
    ExportConfiguration();
-   
+
    return true;
 }
 
@@ -50,10 +51,9 @@ bool NetTransmit::Execute(){
 bool NetTransmit::Finalise() {
 
    if(m_verbose > 1)
-      printf("NetTransmit::Finalise in progress\n");
+      *m_log << ML(3) << "NetTransmit::Finalise in progress" << std::endl;
 
    m_util->KillThread(args);
-   printf("NetTransmit::Finalise KillThread done\n");
 
    m_data->data_sock->close();
    
@@ -64,7 +64,7 @@ bool NetTransmit::Finalise() {
    m_util=0;
    
    if(m_verbose > 1)
-      printf("NetTransmit::Finalise in done\n");
+      *m_log << ML(3) << "NetTransmit::Finalise done" << std::endl;
 
    return true;
 }
@@ -73,26 +73,26 @@ void NetTransmit::Thread(Thread_args* arg) {
 
    NetTransmit_args* args=reinterpret_cast<NetTransmit_args*>(arg);
    zmq::message_t reply;
+   ToolFramework::MsgL ml(3, args->verbose);
  
    DAQHeader *dh = new DAQHeader();
-   uint16_t *bufusint;
  
    if(*(args->next_xfer)) {
  
       if(args->verbose > 1)
-         printf("NetTransmit::Thread fetch new buffer_id\n");
+         *(args->m_log) << ml << "NetTransmit::Thread fetch new buffer_id" << std::endl;
  
       bool timeout;
       *(args->buffer_id) = args->m_data->q2.pop(&timeout);
 
       if(timeout) {
          if(args->verbose > 1)
-            printf("NetTransmit::Thread transmit queue empty\n");
+            *(args->m_log) << ml << "NetTransmit::Thread transmit queue empty" << std::endl;
          return;
       }
  
       if(args->verbose > 1)
-         printf("NetTransmit::Thread buffer_id: %d\n", *(args->buffer_id));
+         *(args->m_log) << ml << "NetTransmit::Thread buffer_id: " << *(args->buffer_id) << std::endl;
    }
  
    dh->SetCardType(2);
@@ -100,13 +100,12 @@ void NetTransmit::Thread(Thread_args* arg) {
    // FIXME 
    dh->SetCoarseCounter(800);
  
-   bufusint = reinterpret_cast<uint16_t *>(args->m_data->buf_ptr[*(args->buffer_id)].buffer);
- 
    zmq::const_buffer buf1 = zmq::buffer(dh->GetData(), dh->GetSize());
-   zmq::const_buffer buf2 = zmq::buffer(bufusint, args->m_data->buf_ptr[*(args->buffer_id)].length);
+   zmq::const_buffer buf2 = zmq::buffer(args->m_data->buf_ptr[*(args->buffer_id)].buffer, args->m_data->buf_ptr[*(args->buffer_id)].transferred_length);
  
    if(args->verbose > 1)
-       printf("NetTransmit::Thread send in progress (%d)\n", *(args->buffer_id));
+       *(args->m_log) << ml << "NetTransmit::Thread send in progress (" << *(args->buffer_id) << ") " <<
+         args->m_data->buf_ptr[*(args->buffer_id)].transferred_length << " bytes" << std::endl;
  
    args->m_data->data_sock->send(buf1, zmq::send_flags::sndmore | zmq::send_flags::dontwait);
    auto rc = args->m_data->data_sock->send(buf2, zmq::send_flags::dontwait);
@@ -115,27 +114,27 @@ void NetTransmit::Thread(Thread_args* arg) {
  
       // if transfer is ok rc.value() is equal to buffer size
  
-      if(rc.value() != args->m_data->buf_ptr[*(args->buffer_id)].length) {
+      if(rc.value() != args->m_data->buf_ptr[*(args->buffer_id)].transferred_length) {
  
          if(args->verbose > 1)
-            printf("NetTransmit::Thread partial buffer sent (%d)\n", *(args->buffer_id));
+            *(args->m_log) << ml << "NetTransmit::Thread partial buffer sent (" << *(args->buffer_id) << ")" << std::endl;
       
       } else {    // send success
  
          args->m_data->q1.push(*(args->buffer_id));
  
          if(args->verbose > 1) {
-            printf("NetTransmit::Thread send done (%d)\n", *(args->buffer_id));
-            printf("NetTransmit::Thread recv ack in progress (%d)\n", *(args->buffer_id));
+            *(args->m_log) << ml << "NetTransmit::Thread send done (" << *(args->buffer_id) << ")" << std::endl;
+            *(args->m_log) << ml << "NetTransmit::Thread recv ack in progress (" << *(args->buffer_id) << ")" << std::endl;
          }
  
          auto rc = args->m_data->data_sock->recv(reply, zmq::recv_flags::dontwait);
  
          if(args->verbose > 1) {
             if(rc.has_value())
-               printf("NetTransmit::Thread recv ack done (%d)\n", *(args->buffer_id));
+               *(args->m_log) << ml << "NetTransmit::Thread recv ack done (" << *(args->buffer_id) << ")" << std::endl;
             else
-               printf("NetTransmit::Thread recv ack failed (%d)\n", *(args->buffer_id));
+               *(args->m_log) << ml << "NetTransmit::Thread recv ack failed (" << *(args->buffer_id) << ")" << std::endl;
          }
  
          *(args->next_xfer) = true;
@@ -145,7 +144,7 @@ void NetTransmit::Thread(Thread_args* arg) {
  
       if(errno == EAGAIN) {
          if(args->verbose > 1) 
-            printf("NetTransmit::Thread send failed (%d)\n", *(args->buffer_id));
+            *(args->m_log) << ml << "NetTransmit::Thread send failed (" << *(args->buffer_id) << ")" << std::endl;
  
          *(args->next_xfer) = false;
          std::this_thread::sleep_for(std::chrono::milliseconds(200));

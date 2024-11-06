@@ -32,8 +32,10 @@ public:
    bool run_start;
    bool run_stop;
    bool sub_run;
-   boost::posix_time::ptime start_time;
    
+   unsigned long start_time;
+   
+   unsigned int run_configuration;
    unsigned long run_number;
    unsigned long sub_run_number;
 

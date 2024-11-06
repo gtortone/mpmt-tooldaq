@@ -8,6 +8,7 @@ set(CMAKE_CXX_FLAGS "-fPIC -O3  -std=c++11 -Wno-comment -Wno-deprecated-declarat
 # set DEPENDENCIES_PATH to path containing libDAQInterface, ToolDAQFramework, ToolFrameworkCore libraries
 set(DEPENDENCIES_PATH "/opt" CACHE STRING "ToolDAQ dependencies path")
 
+set(MODBUS_LIBS modbus)
 set(BOOST_LIBS boost_date_time boost_serialization boost_iostreams)
 set(ZMQ_LIBS zmq)
 
@@ -53,6 +54,7 @@ target_link_libraries (
    ${MYTOOLS_LIBS} 
    ${ZMQ_LIBS} 
    ${BOOST_LIBS} 
+   ${MODBUS_LIBS} 
 )
 
 MACRO(HEADER_DIRECTORIES return_list)

@@ -14,10 +14,11 @@ struct FPGAReadout_args:Thread_args{
    
    DataModel* m_data;
    DAQUtilities* utils;
-   //ToolFramework::Logging *m_log;
+   ToolFramework::Logging *m_log;
    int fd;
    int32_t *buffer_id;
    bool *next_xfer;
+   bool *acquiring;
    int verbose;
 };
 
@@ -35,6 +36,8 @@ private:
    int fd;
    int32_t buffer_id;
    bool next_xfer;
+   int _inline;
+   bool acquiring;
 
    static void Thread(Thread_args* arg);
    Utilities* m_util;
