@@ -27,11 +27,11 @@ public:
   
    DataModel(); ///< Simple constructor 
    
-   bool load_config;
-   bool change_config;
    bool run_start;
    bool run_stop;
    bool sub_run;
+   bool load_config;
+   bool change_config;
    
    unsigned long start_time;
    

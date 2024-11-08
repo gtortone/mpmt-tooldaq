@@ -4,3 +4,4 @@
 #include "NetTransmit.h"
 #include "BoardControl.h"
 #include "SlaveRunControl.h"
+#include "Configuration.h"
