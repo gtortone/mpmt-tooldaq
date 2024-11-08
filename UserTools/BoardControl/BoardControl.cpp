@@ -49,7 +49,7 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
 
    m_data->sc_vars.Add("hv-reset", COMMAND, [this](const char* value) -> std::string { return HVResetFromCommand(value); } );
    m_data->sc_vars.Add("hv-power", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "power"); } );
-   m_data->sc_vars.Add("hv-set-voltage", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "voltage"); } );
+   m_data->sc_vars.Add("hv-set-voltage-level", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "voltage_level"); } );
    m_data->sc_vars.Add("hv-set-rampup-rate", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "rampup_rate"); } );
    m_data->sc_vars.Add("hv-set-rampdown-rate", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "rampdown_rate"); } );
    m_data->sc_vars.Add("hv-set-voltage-limit", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "voltage_limit"); } );
@@ -144,12 +144,14 @@ void BoardControl::Thread(Thread_args* arg) {
 
    args->bd->lapse = args->bd->period - (boost::posix_time::microsec_clock::universal_time() - args->bd->last);
 
-   if(args->bd->lapse.is_negative()) {
+   if(args->bd->lapse.is_negative() && args->bd->m_data->services) {
 
       for(int mod : args->bd->modList) {
+
          // send monitoring data
          std::stringstream s;
          std::string json_str;
+
          s << "HV-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-" << mod;
          json_str = args->bd->HVGetMonitoringInfo(mod);
          
