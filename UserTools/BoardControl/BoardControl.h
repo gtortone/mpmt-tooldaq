@@ -8,7 +8,7 @@
 #include "DataModel.h"
 
 #include "HVDevice.h"
-#include "HVExceptions.h"
+#include "RCDevice.h"
 
 struct BoardControl;
 
@@ -33,15 +33,18 @@ public:
 
 private:
 
-   std::string port;
    std::string m_configfile;
+   std::string hv_port;
    HVDevice *hvdev;
+
+   std::string rc_port; 
+   RCDevice *rcdev;
 
    static void Thread(Thread_args* arg);
    Utilities* m_util;
    BoardControl_args* args;
 
-   // HV monitoring timers
+   // monitoring timers
    boost::posix_time::time_duration period;
    boost::posix_time::time_duration lapse;
    boost::posix_time::ptime last;
@@ -53,7 +56,9 @@ private:
    std::string HVGetMonitoringInfo(uint8_t id);
 
    // RC methods
-   // ...
+   std::string RCReadFromCommand(const char *cmd);
+   std::string RCWriteFromCommand(const char *cmd);
+   std::string RCGetRatemeters(void);
 };
 
 

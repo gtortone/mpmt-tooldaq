@@ -25,7 +25,14 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    args=new BoardControl_args();
 
    try {
-      hvdev = new HVDevice(port);
+      rcdev = new RCDevice(rc_port);
+   } catch (std::exception &e) {
+      *m_log << ML(1) << e.what() << std::endl;
+      return false;
+   }
+
+   try {
+      hvdev = new HVDevice(hv_port);
    } catch (std::exception &e) {
       *m_log << ML(1) << e.what() << std::endl;
       return false;
@@ -52,6 +59,9 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    m_data->sc_vars.Add("hv-set-triptime-limit", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "triptime_limit"); } );
    m_data->sc_vars.Add("hv-set-threshold", COMMAND, [this](const char* value) -> std::string { return HVSetFromCommand(value, "threshold"); } );
    m_data->sc_vars.Add("hv-get-status", COMMAND, [this](const char *value) -> std::string { return HVStatusFromCommand(value); } );
+   m_data->sc_vars.Add("rc-read-register", COMMAND, [this](const char *value) -> std::string { return RCReadFromCommand(value); } );
+   m_data->sc_vars.Add("rc-write-register", COMMAND, [this](const char *value) -> std::string { return RCWriteFromCommand(value); } );
+   m_data->sc_vars.Add("rc-get-ratemeters", BUTTON, [this](const char *value) -> std::string { return RCGetRatemeters(); } );
    
    args->bd = this;
    m_util->CreateThread("bc", &Thread, args);
@@ -82,11 +92,14 @@ bool BoardControl::LoadConfig() {
    if(!m_variables.Get("verbose", m_verbose))
       m_verbose=1;
 
-   if(!m_variables.Get("port", port))
-      port = "/dev/ttyPS2";
+   if(!m_variables.Get("hv_port", hv_port))
+      hv_port = "/dev/ttyPS2";
+
+   if(!m_variables.Get("rc_port", rc_port))
+      rc_port = "/dev/uio0";
 
    uint16_t period_sec;
-   if(!m_variables.Get("hv_period_sec", period_sec))
+   if(!m_variables.Get("monitoring_period_sec", period_sec))
       period_sec = 30;
    period = boost::posix_time::seconds(period_sec);
    
@@ -137,9 +150,9 @@ void BoardControl::Thread(Thread_args* arg) {
 
    if(args->bd->lapse.is_negative() && args->bd->m_data->services) {
 
+      // send HV monitoring data
       for(int mod : args->bd->hvdev->GetChannelList()) {
 
-         // send monitoring data
          std::stringstream s;
          std::string json_str;
 
@@ -151,12 +164,26 @@ void BoardControl::Thread(Thread_args* arg) {
          if(args->bd->m_verbose > 1)
             *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
       }
+   
+      // send RC monitoring data
+      std::stringstream s;
+      std::string json_str;
+
+      s << "RC-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-rates";
+      json_str = args->bd->RCGetRatemeters();
+
+      args->bd->m_data->services->SendMonitoringData(json_str, s.str());
+
+      if(args->bd->m_verbose > 1)
+         *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
 
       args->bd->last = boost::posix_time::microsec_clock::universal_time();
    }
 
    usleep(5000);
 }
+
+// HV slow control commands
 
 std::string BoardControl::HVResetFromCommand(const char *cmd) {
 
@@ -185,8 +212,6 @@ std::string BoardControl::HVResetFromCommand(const char *cmd) {
    return "ok";
 }
 
-// HV set from SlowControl command
-
 std::string BoardControl::HVSetFromCommand(const char *cmd, std::string label) {
 
    int id, value;
@@ -212,8 +237,6 @@ std::string BoardControl::HVSetFromCommand(const char *cmd, std::string label) {
 
    return "ok";
 }
-
-// HV status from SlowControl command
 
 std::string BoardControl::HVStatusFromCommand(const char *cmd) {
 
@@ -254,3 +277,76 @@ std::string BoardControl::HVGetMonitoringInfo(uint8_t id) {
 
    return str; 
 }
+
+// RC slow control commands
+
+std::string BoardControl::RCReadFromCommand(const char *cmd) {
+
+   uint16_t addr;
+   std::string params;
+
+   m_data->sc_vars[cmd]->GetValue(params);
+
+   if(m_verbose > 1)
+      *m_log << ML(3) << "BoardControl::RCRead params: " << params.c_str() << std::endl;
+
+   if(sscanf(params.c_str(), "%d", &addr) != 1) {
+
+      return "RC command parse error";
+
+   } else {
+
+      uint32_t value = rcdev->ReadRegister(addr);
+
+      Store tmp;
+      std::string json_str;
+      std::stringstream ss;
+
+      ss << "\"0x" << std::hex << value << "\"";
+      tmp.Set<uint32_t>("dec", value);
+      tmp.Set<std::string>("hex", ss.str());
+
+      tmp >> json_str;
+   
+      return json_str;
+   }
+}
+
+std::string BoardControl::RCWriteFromCommand(const char *cmd) {
+
+   uint16_t addr;
+   uint32_t value;
+   std::string params;
+
+   m_data->sc_vars[cmd]->GetValue(params);
+
+   if(m_verbose > 1)
+      *m_log << ML(3) << "BoardControl::RCWrite params: " << params.c_str() << std::endl;
+
+   if( (sscanf(params.c_str(), "%ld,0x%X", &addr, &value) == 2) || 
+      (sscanf(params.c_str(), "%ld,%ld", &addr, &value) == 2) ) {
+
+      rcdev->WriteRegister(addr, value);
+      return "ok";
+
+   }
+   
+   return "RC command parse error";
+}
+
+std::string BoardControl::RCGetRatemeters(void) {
+
+   Store tmp;
+   std::string str; 
+
+   for(int i=1; i<=19; i++) {
+      std::stringstream ss;
+      ss << "rate_ch" << i;
+      tmp.Set(ss.str(), rcdev->ReadRegister(7+i));
+   }
+
+   tmp >> str;
+
+   return str; 
+}
+
