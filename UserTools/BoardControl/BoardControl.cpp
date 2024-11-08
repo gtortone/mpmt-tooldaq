@@ -1,4 +1,5 @@
 #include "BoardControl.h"
+#include <vector>
 #include <sstream>
 
 BoardControl_args::BoardControl_args():Thread_args() {
@@ -6,7 +7,6 @@ BoardControl_args::BoardControl_args():Thread_args() {
 
 BoardControl_args::~BoardControl_args() {
 }
-
 
 BoardControl::BoardControl():Tool() { 
 }
@@ -24,26 +24,20 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    m_util=new Utilities();
    args=new BoardControl_args();
 
-   ctx = modbus_new_rtu(port.c_str(), 115200, 'N', 8, 1);
-
-   if(ctx == NULL) {
-      const char *msg = "unable to set modbus context";
-      if(m_data->services)
-         m_data->services->SendLog(msg, 2);
-      *m_log << ML(0) << msg << std::endl;
+   try {
+      hvdev = new HVDevice(port);
+   } catch (std::exception &e) {
+      *m_log << ML(1) << e.what() << std::endl;
       return false;
    }
 
-   if(modbus_connect(ctx) == -1) {
-      const char *msg = "unable to connect to modbus device";
-      if(m_data->services)
-         m_data->services->SendLog(msg, 2);
-      *m_log << ML(0) << msg << std::endl;
-      return false;
+   hvdev->Probe();
+
+   for(uint8_t ch : hvdev->GetChannelList()) {
+      if(m_verbose > 1)
+         *m_log << ML(3) << "HV module " << ch << " detected" << std::endl;
    }
-
-   HVProbe();
-
+      
    // configure tool using data retrieved by config file
    Configure(m_variables);
 
@@ -60,7 +54,7 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    m_data->sc_vars.Add("hv-get-status", COMMAND, [this](const char *value) -> std::string { return HVStatusFromCommand(value); } );
    
    args->bd = this;
-   m_util->CreateThread("hv", &Thread, args);
+   m_util->CreateThread("bc", &Thread, args);
    
    ExportConfiguration();
 
@@ -110,7 +104,7 @@ void BoardControl::Configure(Store s) {
       if(sscanf(var.c_str(), "hv_%d_%s", &id, label) == 2) {
          s.Get<int>(var, value);
          try {
-            HVSet(id, value, std::string(label));
+            hvdev->Set(id, value, std::string(label));
          } catch (std::exception &e) {
             if(m_verbose > 1)   
                *m_log << ML(0) << "id: " << id << " value: " << value << " label: " << label << " => " << e.what() << std::endl;
@@ -130,11 +124,8 @@ bool BoardControl::Finalise() {
    delete m_util;
    m_util=0;
 
-   modList.clear();
-   
-   modbus_close(ctx);
-   modbus_free(ctx);
-   
+   delete hvdev;
+
    return true;
 }
 
@@ -146,7 +137,7 @@ void BoardControl::Thread(Thread_args* arg) {
 
    if(args->bd->lapse.is_negative() && args->bd->m_data->services) {
 
-      for(int mod : args->bd->modList) {
+      for(int mod : args->bd->hvdev->GetChannelList()) {
 
          // send monitoring data
          std::stringstream s;
@@ -167,30 +158,6 @@ void BoardControl::Thread(Thread_args* arg) {
    usleep(5000);
 }
 
-void BoardControl::HVProbe(void) {
-
-   uint16_t test;
-
-   for(int i=1; i<=20; i++) {
-      modbus_set_slave(ctx, i);
-      if(modbus_read_registers(ctx, 0, 1, &test) == -1)
-         continue;
-      if(m_verbose > 1)
-         *m_log << ML(3) << "HV module " << i << " detected" << std::endl;
-      modList.push_back(i);
-   }
-}
-
-bool BoardControl::HVFindModule(uint8_t id) {
-
-   if(std::find(modList.begin(), modList.end(), id) == modList.end())
-      throw(HVModuleNotFound("HV module not found"));
-
-   return true;
-}
-
-// HV reset
-
 std::string BoardControl::HVResetFromCommand(const char *cmd) {
 
    std::string params;
@@ -208,49 +175,14 @@ std::string BoardControl::HVResetFromCommand(const char *cmd) {
    } else {
      
       try {
-         HVFindModule(id);
+         hvdev->FindChannel(id);
       } catch (std::exception &e) {
          return e.what();
       }
-      HVReset(id);
+      hvdev->Reset(id);
    }
 
    return "ok";
-}
-
-void BoardControl::HVReset(uint8_t id) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_bit(ctx, 2, true);
-   mbus.unlock();
-}
-
-void BoardControl::HVSet(uint8_t id, int value, std::string label) {
-
-   HVFindModule(id);
-
-   if(std::find(HVparam.begin(), HVparam.end(), label) == HVparam.end())
-      throw(HVParamNotFound("HV parameter not found"));
-
-   if(label == "power")
-      HVSetPower(id, value);
-   else if(label == "voltage_level")
-      HVSetVoltageLevel(id, value);
-   else if(label == "rampup_rate")
-      HVSetRampupRate(id, value);
-   else if(label == "rampdown_rate")
-      HVSetRampdownRate(id, value);
-   else if(label == "voltage_limit")
-      HVSetVoltageLimit(id, value);
-   else if(label == "current_limit")
-      HVSetCurrentLimit(id, value);
-   else if(label == "temperature_limit")
-      HVSetTemperatureLimit(id, value);
-   else if(label == "triptime_limit")
-      HVSetTriptimeLimit(id, value);
-   else if(label == "threshold")
-      HVSetThreshold(id, value);
 }
 
 // HV set from SlowControl command
@@ -272,7 +204,7 @@ std::string BoardControl::HVSetFromCommand(const char *cmd, std::string label) {
    } else {
 
       try {
-         HVSet(id, value, label);
+         hvdev->Set(id, value, label);
       } catch (std::exception &e) {
          return e.what();
       }
@@ -300,7 +232,7 @@ std::string BoardControl::HVStatusFromCommand(const char *cmd) {
    } else {
 
       try {
-         HVFindModule(id);
+         hvdev->FindChannel(id);
       } catch (std::exception &e) {
          return e.what();
       }
@@ -308,221 +240,16 @@ std::string BoardControl::HVStatusFromCommand(const char *cmd) {
    }
 }
 
-void BoardControl::HVSetPower(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_bit(ctx, 1, value!=0);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetVoltageLevel(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x26, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetRampupRate(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x23, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetRampdownRate(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x24, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetVoltageLimit(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x27, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetCurrentLimit(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x25, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetTemperatureLimit(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x2F, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetTriptimeLimit(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x22, value);
-   mbus.unlock();
-}
-
-void BoardControl::HVSetThreshold(uint8_t id, int value) {
-
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_write_register(ctx, 0x2D, value);
-   mbus.unlock();
-}
-
-int BoardControl::HVGetPowerStatus(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x06, 1, &value);
-   mbus.unlock();
-   return value;
-}
-
-double BoardControl::HVGetVoltageLevel(uint8_t id) {
-
-   uint16_t msb, lsb;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x2A, 1, &lsb);
-      modbus_read_registers(ctx, 0x2B, 1, &msb);
-   mbus.unlock();
-
-   return ((msb << 16) + lsb) / 1000.0;
-}
-
-double BoardControl::HVGetCurrent(uint8_t id) {
-
-   uint16_t msb, lsb;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x28, 1, &lsb);
-      modbus_read_registers(ctx, 0x29, 1, &msb);
-   mbus.unlock();
-
-   return ((msb << 16) + lsb) / 1000.0;
-}
-
-int BoardControl::HVGetTemperature(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x07, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetRampupRate(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x23, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetRampdownRate(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x24, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetVoltageLimit(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x27, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetCurrentLimit(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x25, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetTemperatureLimit(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x2F, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetTriptimeLimit(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x22, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetThreshold(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x2D, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
-int BoardControl::HVGetAlarm(uint8_t id) {
-
-   uint16_t value;
-   mbus.lock();
-      modbus_set_slave(ctx, id);
-      modbus_read_registers(ctx, 0x2E, 1, &value);
-   mbus.unlock();
-
-   return value;
-}
-
 std::string BoardControl::HVGetMonitoringInfo(uint8_t id) {
 
    Store tmp;
    std::string str; 
 
-   tmp.Set("status", HVGetPowerStatus(id));
-   tmp.Set("voltage", HVGetVoltageLevel(id));
-   tmp.Set("current", HVGetCurrent(id));
-   tmp.Set("temperature", HVGetTemperature(id));
-   tmp.Set("alarm", HVGetAlarm(id));
+   tmp.Set("status", hvdev->GetPowerStatus(id));
+   tmp.Set("voltage", hvdev->GetVoltageLevel(id));
+   tmp.Set("current", hvdev->GetCurrent(id));
+   tmp.Set("temperature", hvdev->GetTemperature(id));
+   tmp.Set("alarm", hvdev->GetAlarm(id));
    tmp >> str;
 
    return str; 

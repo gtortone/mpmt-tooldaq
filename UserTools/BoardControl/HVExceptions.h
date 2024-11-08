@@ -1,13 +1,26 @@
 #ifndef HVExceptions_H
 #define HVExceptions_H
 
-class HVModuleNotFound : public std::exception {
+class HVModbusError : public std::exception {
 
 private:
    std::string message;
 
 public:
-   HVModuleNotFound(const char* msg) : message(msg) {}
+   HVModbusError(const char* msg) : message(msg) {}
+
+   const char* what() const throw() {
+       return message.c_str();
+   }
+};
+
+class HVChannelNotFound : public std::exception {
+
+private:
+   std::string message;
+
+public:
+   HVChannelNotFound(const char* msg) : message(msg) {}
 
    const char* what() const throw() {
        return message.c_str();
