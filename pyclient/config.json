@@ -1,0 +1,24 @@
+
+{
+   "rc_0": "0xFF",
+   "rc_1": "0xFF",
+   "rc_7": "0x01",
+   
+   "hv_3_voltage_level": 100,
+   "hv_3_rampup_rate": 25,
+   "hv_3_rampdown_rate": 25,
+   "hv_3_voltage_limit": 1000,
+   "hv_3_current_limit": 11,
+   "hv_3_temperature_limit": 50,
+   "hv_3_triptime_limit": 5,
+   "hv_3_threshold": 10,
+   
+   "hv_6_voltage_level": 100,
+   "hv_6_rampup_rate": 25,
+   "hv_6_rampdown_rate": 25,
+   "hv_6_voltage_limit": 1000,
+   "hv_6_current_limit": 10,
+   "hv_6_temperature_limit": 70,
+   "hv_6_triptime_limit": 5,
+   "hv_6_threshold": 10
+}
