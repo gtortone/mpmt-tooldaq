@@ -18,8 +18,8 @@ public:
    RCDevice(std::string port);
    ~RCDevice();
 
-   void WriteRegister(uint16_t addr, uint32_t value);
-   uint32_t ReadRegister(uint16_t addr);
+   void WriteRegister(const uint16_t addr, const uint32_t value);
+   uint32_t ReadRegister(const uint16_t addr);
 };
 
 #endif

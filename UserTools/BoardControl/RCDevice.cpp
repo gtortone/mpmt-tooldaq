@@ -23,10 +23,18 @@ RCDevice::~RCDevice() {
    close(fd);
 }
 
-uint32_t RCDevice::ReadRegister(uint16_t addr) {
+uint32_t RCDevice::ReadRegister(const uint16_t addr) {
    return ptr[addr];
 }
 
-void RCDevice::WriteRegister(uint16_t addr, uint32_t value) {
-   ptr[addr] = value; 
+void RCDevice::WriteRegister(const uint16_t addr, const uint32_t value) {
+   // slow down write for register 1
+   if(addr == 1) {
+      uint32_t mask = 1;
+      for(int i=0; i<19; i++) {
+         ptr[addr] = value & mask;
+         mask = mask | (mask << 1);
+         usleep(1000);
+      }
+   } else ptr[addr] = value; 
 }
