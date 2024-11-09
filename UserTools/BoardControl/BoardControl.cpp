@@ -110,8 +110,10 @@ void BoardControl::Configure(Store s) {
 
    std::vector<std::string> vars = s.Keys();
    for(std::string var: vars) {
-      int id;
+      int id, reg;
       int value;
+      uint32_t lvalue;
+      std::string value_str;
       char label[32];
    
       if(sscanf(var.c_str(), "hv_%d_%s", &id, label) == 2) {
@@ -120,11 +122,29 @@ void BoardControl::Configure(Store s) {
             hvdev->Set(id, value, std::string(label));
          } catch (std::exception &e) {
             if(m_verbose > 1)   
-               *m_log << ML(0) << "id: " << id << " value: " << value << " label: " << label << " => " << e.what() << std::endl;
+               *m_log << ML(0) << "(HV) id: " << id << " value: " << value << " label: " << label << " => " << e.what() << std::endl;
+         }
+
+      } else if(sscanf(var.c_str(), "rc_%d", &reg) == 1) {
+         s.Get<std::string>(var, value_str);
+         // check if value is in hex format
+         size_t idx;
+         lvalue = std::stol(value_str, &idx, 16);
+         if(idx == value_str.length()) {
+            rcdev->WriteRegister(reg, lvalue);
+            if(m_verbose > 1)   
+               *m_log << ML(0) << "(RC) reg: " << reg << " value: " << value_str << std::endl;
+         } else {
+            // check if value is in decimal format
+            lvalue = std::stol(value_str, &idx, 10);
+            if(idx == value_str.length()) {
+               rcdev->WriteRegister(reg, lvalue);
+               if(m_verbose > 1)   
+                  *m_log << ML(0) << "(RC) reg: " << reg << " value: " << value_str << std::endl;
+            }
          }
       }
-   }
-
+   } // end for
 }
 
 bool BoardControl::Finalise() {
