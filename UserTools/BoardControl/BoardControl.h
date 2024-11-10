@@ -10,6 +10,7 @@
 #include "HVDevice.h"
 #include "RCDevice.h"
 #include "TLA2024.h"
+#include "BME280.h"
 
 struct BoardControl;
 
@@ -42,6 +43,7 @@ private:
    RCDevice *rcdev;
 
    TLA2024 *tladev;
+   BME280 *bmedev;
 
    static void Thread(Thread_args* arg);
    Utilities* m_util;

@@ -37,6 +37,12 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
       *m_log << ML(1) << e.what() << std::endl;
       return false;
    }
+   hvdev->Probe();
+
+   for(uint8_t ch : hvdev->GetChannelList()) {
+      if(m_verbose > 1)
+         *m_log << ML(3) << "HV module " << ch << " detected" << std::endl;
+   }
 
    try {
       tladev = new TLA2024("/dev/i2c-1", 0x48);
@@ -44,16 +50,15 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
       *m_log << ML(1) << e.what() << std::endl;
       return false;
    }
-
    tladev->setSps(SPS_1600);
 
-   hvdev->Probe();
-
-   for(uint8_t ch : hvdev->GetChannelList()) {
-      if(m_verbose > 1)
-         *m_log << ML(3) << "HV module " << ch << " detected" << std::endl;
+   try {
+      bmedev = new BME280("/dev/i2c-1", 0x76);
+   } catch (std::exception &e) {
+      *m_log << ML(1) << e.what() << std::endl;
+      return false;
    }
-      
+
    // configure tool using data retrieved by config file
    Configure(m_variables);
 
@@ -217,6 +222,20 @@ void BoardControl::Thread(Thread_args* arg) {
 
          s << "SN-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-PS";
          json_str = args->bd->SNGetPSStatus();
+
+         args->bd->m_data->services->SendMonitoringData(json_str, s.str());
+
+         if(args->bd->m_verbose > 1)
+            *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
+      }
+
+      {
+         // send environmental monitoring data
+         std::stringstream s;
+         std::string json_str;
+
+         s << "SN-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-ENV";
+         json_str = args->bd->SNGetEnvStatus();
 
          args->bd->m_data->services->SendMonitoringData(json_str, s.str());
 
@@ -429,5 +448,14 @@ std::string BoardControl::SNGetPSStatus(void) {
 
 std::string BoardControl::SNGetEnvStatus(void) {
 
-   return "";
+   Store tmp;
+   std::string str; 
+
+   tmp.Set("board_temperature", bmedev->readTemperature());
+   tmp.Set("board_humidity", bmedev->readHumidity());
+   tmp.Set("board_pressure", bmedev->readPressure());
+
+   tmp >> str;   
+
+   return str; 
 }
