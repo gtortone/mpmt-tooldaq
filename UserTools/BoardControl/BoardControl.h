@@ -9,6 +9,7 @@
 
 #include "HVDevice.h"
 #include "RCDevice.h"
+#include "TLA2024.h"
 
 struct BoardControl;
 
@@ -40,6 +41,8 @@ private:
    std::string rc_port; 
    RCDevice *rcdev;
 
+   TLA2024 *tladev;
+
    static void Thread(Thread_args* arg);
    Utilities* m_util;
    BoardControl_args* args;
@@ -59,7 +62,10 @@ private:
    std::string RCReadFromCommand(const char *cmd);
    std::string RCWriteFromCommand(const char *cmd);
    std::string RCGetRatemeters(void);
-};
 
+   // sensors methods
+   std::string SNGetPSStatus(void);
+   std::string SNGetEnvStatus(void);
+};
 
 #endif

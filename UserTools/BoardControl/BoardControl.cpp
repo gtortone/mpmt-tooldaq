@@ -38,6 +38,15 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
       return false;
    }
 
+   try {
+      tladev = new TLA2024("/dev/i2c-1", 0x48);
+   } catch (std::exception &e) {
+      *m_log << ML(1) << e.what() << std::endl;
+      return false;
+   }
+
+   tladev->setSps(SPS_1600);
+
    hvdev->Probe();
 
    for(uint8_t ch : hvdev->GetChannelList()) {
@@ -62,6 +71,8 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    m_data->sc_vars.Add("rc-read-register", COMMAND, [this](const char *value) -> std::string { return RCReadFromCommand(value); } );
    m_data->sc_vars.Add("rc-write-register", COMMAND, [this](const char *value) -> std::string { return RCWriteFromCommand(value); } );
    m_data->sc_vars.Add("rc-get-ratemeters", BUTTON, [this](const char *value) -> std::string { return RCGetRatemeters(); } );
+   m_data->sc_vars.Add("sn-read-ps", BUTTON, [this](const char *value) -> std::string { return SNGetPSStatus(); } );
+   m_data->sc_vars.Add("sn-read-env", BUTTON, [this](const char *value) -> std::string { return SNGetEnvStatus(); } );
    
    args->bd = this;
    m_util->CreateThread("bc", &Thread, args);
@@ -185,17 +196,33 @@ void BoardControl::Thread(Thread_args* arg) {
             *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
       }
    
-      // send RC monitoring data
-      std::stringstream s;
-      std::string json_str;
+      {
+         // send RC monitoring data
+         std::stringstream s;
+         std::string json_str;
 
-      s << "RC-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-rates";
-      json_str = args->bd->RCGetRatemeters();
+         s << "RC-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-rates";
+         json_str = args->bd->RCGetRatemeters();
 
-      args->bd->m_data->services->SendMonitoringData(json_str, s.str());
+         args->bd->m_data->services->SendMonitoringData(json_str, s.str());
 
-      if(args->bd->m_verbose > 1)
-         *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
+         if(args->bd->m_verbose > 1)
+            *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
+      }
+
+      {
+         // send PS monitoring data
+         std::stringstream s;
+         std::string json_str;
+
+         s << "SN-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-PS";
+         json_str = args->bd->SNGetPSStatus();
+
+         args->bd->m_data->services->SendMonitoringData(json_str, s.str());
+
+         if(args->bd->m_verbose > 1)
+            *(args->bd->m_log) << args->bd->ML(0) << s.str() << ": " << json_str << std::endl;
+      }
 
       args->bd->last = boost::posix_time::microsec_clock::universal_time();
    }
@@ -370,3 +397,37 @@ std::string BoardControl::RCGetRatemeters(void) {
    return str; 
 }
 
+std::string BoardControl::SNGetPSStatus(void) {
+
+   Store tmp;
+   std::string str; 
+   double v1, v2, i1, i2;
+
+   tladev->setGain(GAIN_TWOTHIRDS);
+   v1 = tladev->readADC_SingleEnded(0) * 3 * 3 / 1000.0;
+   tmp.Set("+5.0V", v1);
+
+   tladev->setGain(GAIN_TWO);
+   i1 = tladev->readADC_SingleEnded(1) / 1000.0;
+   tmp.Set("IpoeA", i1);
+
+   tladev->setGain(GAIN_ONE);
+   v2 = tladev->readADC_SingleEnded(2) * 2 * 2 / 1000.0;
+   tmp.Set("+3.3V", v2);
+
+   tladev->setGain(GAIN_TWO);
+   i2 = tladev->readADC_SingleEnded(3) / 1000.0;
+   tmp.Set("IpoeB", i2);
+
+   tmp.Set("PpoeA", v1 * i1);
+   tmp.Set("PpoeB", v1 * i2);
+
+   tmp >> str;
+
+   return str; 
+}
+
+std::string BoardControl::SNGetEnvStatus(void) {
+
+   return "";
+}
