@@ -12,6 +12,7 @@ class HVDevice {
 private:
    modbus_t *ctx;
    std::string m_port;
+   std::string m_mode;
    std::mutex mbus;
    std::vector<uint8_t> channelList;
 
@@ -28,13 +29,16 @@ private:
    };
 
 public:
-   HVDevice(std::string port);
+   HVDevice(std::string mode, std::string port="/dev/ttyPS2", std::string hostip="127.0.0.1");
    ~HVDevice();
 
    void Probe(void);
    std::vector<uint8_t> GetChannelList(void);
+   void SetChannelList(std::vector<uint8_t> chlist);
    bool FindChannel(uint8_t id);
    void Set(uint8_t id, int value, std::string label);
+   void mbus_lock(void);
+   void mbus_unlock(void);
 
    void Reset(uint8_t id);
    void SetPower(uint8_t id, int value);
@@ -50,7 +54,7 @@ public:
    int GetPowerStatus(uint8_t id);
    double GetVoltageLevel(uint8_t id); 
    double GetCurrent(uint8_t id);
-   int GetTemperature(uint8_t id);
+   float GetTemperature(uint8_t id);
    int GetRampupRate(uint8_t id);
    int GetRampdownRate(uint8_t id);
    int GetVoltageLimit(uint8_t id);

@@ -32,7 +32,7 @@ bool BoardControl::Initialise(std::string configfile, DataModel &data){
    }
 
    try {
-      hvdev = new HVDevice(hv_port);
+      hvdev = new HVDevice(hv_busmode, hv_port);
    } catch (std::exception &e) {
       *m_log << ML(1) << e.what() << std::endl;
       return false;
@@ -108,6 +108,9 @@ bool BoardControl::LoadConfig() {
    if(!m_variables.Get("verbose", m_verbose))
       m_verbose=1;
 
+   if(!m_variables.Get("hv_busmode", hv_busmode))
+      hv_busmode = "tcp";
+
    if(!m_variables.Get("hv_port", hv_port))
       hv_port = "/dev/ttyPS2";
 
@@ -182,19 +185,32 @@ void BoardControl::Thread(Thread_args* arg) {
 
    BoardControl_args* args=reinterpret_cast<BoardControl_args*>(arg);
 
+   if(!args->hvmon) {
+      args->hvmon = new HVDevice(args->bd->hv_busmode, args->bd->hv_port);
+      args->hvmon->SetChannelList(args->bd->hvdev->GetChannelList());
+   }
+
    args->bd->lapse = args->bd->period - (boost::posix_time::microsec_clock::universal_time() - args->bd->last);
 
    if(args->bd->lapse.is_negative() && args->bd->m_data->services) {
 
-      // send HV monitoring data
+      // send HV monitoring data using channel list of hvdev
       for(int mod : args->bd->hvdev->GetChannelList()) {
 
          std::stringstream s;
          std::string json_str;
 
          s << "HV-" << args->bd->m_data->services->GetDeviceName() << args->bd->m_data->mpmt_id << "-" << mod;
-         json_str = args->bd->HVGetMonitoringInfo(mod);
-         
+
+         Store tmp;
+
+         tmp.Set("status", args->hvmon->GetPowerStatus(mod));
+         tmp.Set("voltage", args->hvmon->GetVoltageLevel(mod));
+         tmp.Set("current", args->hvmon->GetCurrent(mod));
+         tmp.Set("temperature", args->hvmon->GetTemperature(mod));
+         tmp.Set("alarm", args->hvmon->GetAlarm(mod));
+         tmp >> json_str;
+
          args->bd->m_data->services->SendMonitoringData(json_str, s.str());
 
          if(args->bd->m_verbose > 1)
@@ -260,6 +276,12 @@ std::string BoardControl::HVResetFromCommand(const char *cmd) {
       *m_log << ML(3) << "BoardControl::Reset params: " << params.c_str() << std::endl;
 
    int id;
+
+   HVDevice *hv;
+   if(hv_busmode == "tcp") {
+      hv = new HVDevice(hv_busmode, hv_port);
+      hv->SetChannelList(hvdev->GetChannelList());
+   } else hv = hvdev;
    
    if(sscanf(params.c_str(), "%d", &id) != 1) {
 
@@ -268,11 +290,11 @@ std::string BoardControl::HVResetFromCommand(const char *cmd) {
    } else {
      
       try {
-         hvdev->FindChannel(id);
+         hv->FindChannel(id);
       } catch (std::exception &e) {
          return e.what();
       }
-      hvdev->Reset(id);
+      hv->Reset(id);
    }
 
    return "ok";
@@ -288,6 +310,12 @@ std::string BoardControl::HVSetFromCommand(const char *cmd, std::string label) {
    if(m_verbose > 1)
       *m_log << ML(3) << "BoardControl::" << label.c_str() << " params: " << params.c_str() << std::endl;
 
+   HVDevice *hv;
+   if(hv_busmode == "tcp") {
+      hv = new HVDevice(hv_busmode, hv_port);
+      hv->SetChannelList(hvdev->GetChannelList());
+   } else hv = hvdev;
+
    if(sscanf(params.c_str(), "%d,%d", &id, &value) != 2) {
 
       return "HV command parse error";
@@ -295,7 +323,7 @@ std::string BoardControl::HVSetFromCommand(const char *cmd, std::string label) {
    } else {
 
       try {
-         hvdev->Set(id, value, label);
+         hv->Set(id, value, label);
       } catch (std::exception &e) {
          return e.what();
       }
@@ -313,7 +341,7 @@ std::string BoardControl::HVStatusFromCommand(const char *cmd) {
       *m_log << ML(3) << "BoardControl::Status params: " << params.c_str() << std::endl;
 
    int id;
-   
+
    if(sscanf(params.c_str(), "%d", &id) != 1) {
 
       return "HV command parse error";
@@ -334,11 +362,17 @@ std::string BoardControl::HVGetMonitoringInfo(uint8_t id) {
    Store tmp;
    std::string str; 
 
-   tmp.Set("status", hvdev->GetPowerStatus(id));
-   tmp.Set("voltage", hvdev->GetVoltageLevel(id));
-   tmp.Set("current", hvdev->GetCurrent(id));
-   tmp.Set("temperature", hvdev->GetTemperature(id));
-   tmp.Set("alarm", hvdev->GetAlarm(id));
+   HVDevice *hv;
+   if(hv_busmode == "tcp") {
+      hv = new HVDevice(hv_busmode, hv_port);
+      hv->SetChannelList(hvdev->GetChannelList());
+   } else hv = hvdev;
+
+   tmp.Set("status", hv->GetPowerStatus(id));
+   tmp.Set("voltage", hv->GetVoltageLevel(id));
+   tmp.Set("current", hv->GetCurrent(id));
+   tmp.Set("temperature", hv->GetTemperature(id));
+   tmp.Set("alarm", hv->GetAlarm(id));
    tmp >> str;
 
    return str; 
