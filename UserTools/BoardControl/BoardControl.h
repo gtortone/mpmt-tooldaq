@@ -20,6 +20,7 @@ struct BoardControl_args:Thread_args{
   ~BoardControl_args();
 
   BoardControl *bd;
+  HVDevice *hvmon;
 };
 
 class BoardControl: public Tool {
@@ -37,6 +38,7 @@ private:
 
    std::string m_configfile;
    std::string hv_port;
+   std::string hv_busmode;
    HVDevice *hvdev;
 
    std::string rc_port; 
