@@ -98,8 +98,8 @@ void NetTransmit::Thread(Thread_args* arg) {
    dh->SetCardType(2);
    dh->SetCardID(args->m_data->mpmt_id); 
    // FIXME 
-   dh->SetCoarseCounter(800);
- 
+   dh->SetCoarseCounter((time(NULL) - args->m_data->start_time)); // elapsed time since run start in seconds
+
    zmq::const_buffer buf1 = zmq::buffer(dh->GetData(), dh->GetSize());
    zmq::const_buffer buf2 = zmq::buffer(args->m_data->buf_ptr[*(args->buffer_id)].buffer, args->m_data->buf_ptr[*(args->buffer_id)].transferred_length);
  
