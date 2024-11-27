@@ -22,6 +22,8 @@ bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
    if(!m_variables.Get("id", m_data->mpmt_id))
       m_data->mpmt_id = 1;
 
+   *m_log << ML(0) << "configured mPMT id: " << m_data->mpmt_id << std::endl;
+
    m_data->vars.Get<int>("Inline", _inline);
 
    m_util=new Utilities();
@@ -118,15 +120,6 @@ void FPGAReadout::Thread(Thread_args* arg) {
       usleep(100);
       return;
    }
-
-   //if(args->_inline == -1) {
-   //   // SlaveRunControl tool in execution...
-   //   if(!args->m_data->acquiring) {
-   //      usleep(100);
-   //      return;
-   //   }
-   //}
-
 
    if(*(args->next_xfer)) {
       *(args->buffer_id) = args->m_data->q1.pop();
