@@ -75,7 +75,7 @@ bool Configuration::LoadConfig() {
     
   } else {
     
-      m_data->services->SendLog("ERROR "+m_tool_name+": Failed to load config from DB with error '"+config_json+"'" , v_error);
+      m_data->services->SendLog("ERROR "+m_tool_name+": Failed to load config from DB '"+config_json+"'");
       //bool ok = m_data->services->SendAlarm("ERROR "+m_tool_name+": Failed to load config from DB with error '"+config_json+"'");
 
       return false;
