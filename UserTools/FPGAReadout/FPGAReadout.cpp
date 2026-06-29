@@ -32,7 +32,7 @@ bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
    if (fd < 1) {
       const char *msg = "unable to open DMA proxy device file";
       if(m_data->services)
-         m_data->services->SendLog(msg, 2);
+         m_data->services->SendLog(msg, LogLevel::Error);
       *m_log << ML(0) << msg << std::endl;
       return false;
    }
@@ -42,7 +42,7 @@ bool FPGAReadout::Initialise(std::string configfile, DataModel &data) {
    if (m_data->buf_ptr == MAP_FAILED) {
       const char *msg = "failed to mmap rx channel";
       if(m_data->services)
-         m_data->services->SendLog("failed to mmap rx channel", 2);
+         m_data->services->SendLog("failed to mmap rx channel", LogLevel::Error);
       *m_log << ML(0) << msg << std::endl;
       return false;
    }
@@ -129,7 +129,7 @@ void FPGAReadout::Thread(Thread_args* arg) {
          std::stringstream msg;
          if(args->m_data->services) {
             msg << "FPGAReadout::Thread: START_XFER (" << *(args->buffer_id) << ")";
-            args->m_data->services->SendLog(msg.str(), 3);
+            args->m_data->services->SendLog(msg.str(), LogLevel::Message);
          }
          ToolFramework::MsgL ml(3, args->verbose);
          *(args->m_log) << ml << msg.str() << std::endl;
@@ -145,7 +145,7 @@ void FPGAReadout::Thread(Thread_args* arg) {
          std::stringstream msg;
          if(args->m_data->services) {
             msg << "FPGAReadout::Thread: PROXY_NO_ERROR(" << *(args->buffer_id) << ")";
-            args->m_data->services->SendLog(msg.str(), 3);
+            args->m_data->services->SendLog(msg.str(), LogLevel::Message);
          }
          ToolFramework::MsgL ml(3, args->verbose);
          *(args->m_log) << ml << msg.str() << std::endl;

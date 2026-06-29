@@ -27,6 +27,7 @@ bool SlaveRunControl::Initialise(std::string configfile, DataModel& data) {
         m_run_start = true;
         if(m_verbose > 1)
           *m_log << ML(0) << "SlaveRunControl receives RunStart - " << payload << std::endl;
+        return true;
       }
   );
 
@@ -36,6 +37,7 @@ bool SlaveRunControl::Initialise(std::string configfile, DataModel& data) {
         m_run_stop = true;
         if(m_verbose > 1)
           *m_log << ML(0) << "SlaveRunControl receives RunStop" << std::endl;
+        return true;
       }
   );
 
@@ -48,6 +50,7 @@ bool SlaveRunControl::Initialise(std::string configfile, DataModel& data) {
         m_data->load_config = true; // reset by the Configuration tool
         if(m_verbose > 1)
           *m_log << ML(0) << "SlaveRunControl receives ChangeConfig - " << payload << std::endl;
+        return true;
       }
   );
 

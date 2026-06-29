@@ -48,6 +48,8 @@ bool Configuration::Finalise() {
 
 bool Configuration::LoadConfig() {
   
+   /*
+
    std::string config_json="";
    std::stringstream device;
 
@@ -56,7 +58,7 @@ bool Configuration::LoadConfig() {
    printf("Configuration:LoadConfig get configuration for device %s\n", device.str().c_str());
 
    *m_log << ML(0) << m_tool_name << "::LoadConfig get configuration for device " << device.str() << std::endl;
-   
+
    if(m_data->services->GetRunDeviceConfig(config_json, m_data->run_configuration, device.str())) {
     
       //printf("config_json: %s\n", config_json.c_str());
@@ -68,10 +70,10 @@ bool Configuration::LoadConfig() {
       if(!m_variables.Get("verbose",m_verbose)) m_verbose=1;
       ExportConfiguration();
       
-      //
-      //*m_log << ML(0) << m_tool_name << "::LoadConfig got updated m_variables:\n======" << std::endl;
-      //m_variables.Print();
-      //
+#if 0
+      *m_log << ML(0) << m_tool_name << "::LoadConfig got updated m_variables:\n======" << std::endl;
+      m_variables.Print();
+#endif
     
   } else {
     
@@ -80,6 +82,8 @@ bool Configuration::LoadConfig() {
 
       return false;
   }
+
+  */
   
   return true;
 }

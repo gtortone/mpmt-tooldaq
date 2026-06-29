@@ -40,7 +40,7 @@ public:
   }
   void SetCardType(unsigned short in){ data[8] = (data[8] & 0b00111111) | ((in & 0b00000011) << 6);}
   void SetCardID(unsigned short in){
-    data[8] = (data[8] & 0b11000000) | (in >> 6) & 0b00111111;
+    data[8] = (data[8] & 0b11000000) | ((in >> 6) & 0b00111111);
     data[9] = (data[9] & 0b00000011) | ((in & 0b00111111) << 2);
   }
   void SetNumberOfWords(unsigned short in){

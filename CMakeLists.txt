@@ -7,6 +7,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 file(GLOB_RECURSE SOURCES
     "${CMAKE_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_SOURCE_DIR}/UserTools/*/*.cpp"
+    "${CMAKE_SOURCE_DIR}/DataModel/*.cpp"
 )
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -40,16 +42,34 @@ target_link_libraries(tooldaq_common INTERFACE ToolFramework::ZeroMQ)
 target_link_libraries(tooldaq_common INTERFACE Boost::date_time Boost::serialization Boost::iostreams)
 target_link_libraries(tooldaq_common INTERFACE zstd)
 
+set(INCLUDE_DIRS
+    DataModel
+    UserTools
+    UserTools/BoardControl
+    UserTools/Configuration
+    UserTools/FPGAReadout
+    UserTools/HKMPMT
+    UserTools/NetTransmit
+    UserTools/SlaveRunControl
+)
+
+set(COMMON_COMPILE_OPTIONS
+    -Wall
+    -Wextra
+    -O3
+    -Wno-unused-result
+    -Wno-deprecated-declarations
+    -Wno-unused-parameter
+    -Wno-sign-compare
+)
+
 #
 # executable with shared object
 #
 add_executable(${PROJECT_NAME} ${SOURCES})
 target_link_libraries(${PROJECT_NAME} PRIVATE ${TOOLDAQ_SHARED})
-target_compile_options(${PROJECT_NAME} PRIVATE 
-	-Wall -Wextra -O3 
-	-Wno-unused-result -Wno-deprecated-declarations 
-	-Wno-unused-parameter -Wno-sign-compare)
-target_include_directories(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(${PROJECT_NAME} PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_include_directories(${PROJECT_NAME} PRIVATE ${INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME} PRIVATE tooldaq_common)
 #
 
@@ -58,11 +78,8 @@ target_link_libraries(${PROJECT_NAME} PRIVATE tooldaq_common)
 #
 add_executable(${PROJECT_NAME}.static ${SOURCES})
 target_link_libraries(${PROJECT_NAME}.static PRIVATE ${TOOLDAQ_STATIC})
-target_compile_options(${PROJECT_NAME}.static PRIVATE 
-	-Wall -Wextra -O3 
-	-Wno-unused-result -Wno-deprecated-declarations 
-	-Wno-unused-parameter -Wno-sign-compare)
-target_include_directories(${PROJECT_NAME}.static PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_compile_options(${PROJECT_NAME}.static PRIVATE ${COMMON_COMPILE_OPTIONS})
+target_include_directories(${PROJECT_NAME}.static PRIVATE ${INCLUDE_DIRS})
 target_link_libraries(${PROJECT_NAME}.static PRIVATE tooldaq_common)
 #
 

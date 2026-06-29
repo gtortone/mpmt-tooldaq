@@ -82,11 +82,9 @@ void BoardControl::Configure(Store s) {
 
    std::vector<std::string> vars = s.Keys();
    for(std::string var: vars) {
-      int id, reg;
-      int value;
+      int reg;
       uint32_t lvalue;
       std::string value_str;
-      char label[32];
    
       if(sscanf(var.c_str(), "rc_%d", &reg) == 1) {
          s.Get<std::string>(var, value_str);
@@ -163,7 +161,7 @@ std::string BoardControl::RCReadFromCommand(const char *cmd) {
    if(m_verbose > 1)
       *m_log << ML(3) << "BoardControl::RCRead params: " << params.c_str() << std::endl;
 
-   if(sscanf(params.c_str(), "%d", &addr) != 1) {
+   if(sscanf(params.c_str(), "%hd", &addr) != 1) {
 
       return "RC command parse error";
 
@@ -196,8 +194,8 @@ std::string BoardControl::RCWriteFromCommand(const char *cmd) {
    if(m_verbose > 1)
       *m_log << ML(3) << "BoardControl::RCWrite params: " << params.c_str() << std::endl;
 
-   if( (sscanf(params.c_str(), "%ld,0x%X", &addr, &value) == 2) || 
-      (sscanf(params.c_str(), "%ld,%ld", &addr, &value) == 2) ) {
+   if( (sscanf(params.c_str(), "%hd,0x%X", &addr, &value) == 2) || 
+      (sscanf(params.c_str(), "%hd,%d", &addr, &value) == 2) ) {
 
       rcdev->WriteRegister(addr, value);
       return "ok";

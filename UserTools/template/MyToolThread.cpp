@@ -48,6 +48,6 @@ bool MyToolThread::Finalise(){
 
 void MyToolThread::Thread(Thread_args* arg){
 
-  MyToolThread_args* args=reinterpret_cast<MyToolThread_args*>(arg);
+  //MyToolThread_args* args=reinterpret_cast<MyToolThread_args*>(arg);
 
 }
