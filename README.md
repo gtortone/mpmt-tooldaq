@@ -17,6 +17,6 @@ This ToolDAQ application can easily build for ARMhf using Docker image available
 
 ### Output files
 
-   executable dynamic linked:  ```build-arm/mpmt-tooldaq```
-   executable statically linked:  ```build-arm/mpmt-tooldaq.static```
-   configuration files: ```build-arm/configfiles```
+   - executable dynamic linked:  ```build-arm/mpmt-tooldaq```
+   - executable statically linked:  ```build-arm/mpmt-tooldaq.static```
+   - configuration files: ```build-arm/configfiles```
