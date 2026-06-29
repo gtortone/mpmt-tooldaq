@@ -1,54 +1,22 @@
 
-# ToolDAQ Application template
+# ToolDAQ mPMT Application 
 
-This template can be used to develop a brand new ToolDAQ toolchain with minimal effort.
+This ToolDAQ application can easily build for ARMhf using Docker image available here:
+
+   https://github.com/gtortone/debian-cross-armhf
 
 ## Usage
 
-- Provides ToolFrameworkCore and ToolDAQFramework libraries in the same directory (e.g. /opt)
-
-```
-git clone https://github.com/ToolFramework/ToolFrameworkCore.git
-
-cd ToolFrameworkCore
-make clean
-make
-```
-
-```
-git clone https://github.com/ToolDAQ/ToolDAQFramework.git
-
-cd ToolDAQFramework
-make clean
-make
-```
-
-- Install following libraries with your package manager utility
-
-```
-boost_date_time
-boost_iostreams
-boost_serialization
-cppzmq
-```
-
-### Build with GNU-Make
-
-- edit Makefile and modify `Dependencies` accordingly to your setup
-
-- start build
-
-  ```
-  make
-  ```
-
 ### Build with CMake
 
-- start build
+   ```
+   cmake -B build-arm -DCMAKE_TOOLCHAIN_FILE=cmake/toolchain-arm-linux-gnueabihf.cmake
 
-  ```
-  mkdir build
-  cd build
-  cmake -DDEPENDENCIES_PATH=/mydir ..
-  make
-  ```
+   make -j -C build-arm
+   ```
+
+### Output files
+
+   executable dynamic linked:  ```build-arm/mpmt-tooldaq```
+   executable statically linked:  ```build-arm/mpmt-tooldaq.static```
+   configuration files: ```build-arm/configfiles```
